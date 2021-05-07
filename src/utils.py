@@ -5,6 +5,8 @@ from skimage.metrics import structural_similarity
 import pytesseract
 from math import floor
 
+_skill_holder = {}
+
 
 def _load_potentially_transparent(filename):
     pot_transparent = cv2.imread(filename, cv2.IMREAD_UNCHANGED)
@@ -128,13 +130,109 @@ def get_slots(img):
 
 
 def get_skills(img, inverted=False):
+    def load_skills():
+        if len(_skill_holder) == 0:
+            for f in os.scandir(os.path.join("images", "skills")):
+                name = f.name.split('.')[0]
+                img = cv2.imread(f.path, 0)
+                # img = trim_top_bottom(img)
+                img = trim_end(img)
+                img = extremify_colors(img)
+                _skill_holder[name] = img
+        return _skill_holder
+
     def _has_level(x):
         x, y = x
         return y > 0
+
+    skill_holder = load_skills()
+
     skills = _get_skills(img)
+    identified_skills = _identify_skill(skills,  skill_holder)
     levels = _get_levels(img, inverted=inverted)
 
-    return list(filter(_has_level, zip(skills, levels)))
+    return list(filter(_has_level, zip(identified_skills, levels)))
+
+
+def trim_top_bottom(skill_to_trim):
+    # [y1:22, 0:]
+    y = 0
+    done = False
+    for line in skill_to_trim:
+        for pixel in line:
+            if pixel != 203:
+                done = True
+                break
+        if done:
+            break
+        y += 1
+
+    if not done:
+        return skill_to_trim
+
+    trimmed = skill_to_trim[y:, :]
+    while(trimmed.shape[0] < 23):
+        to_add = [203]*216
+        trimmed = np.insert(trimmed, trimmed.shape[0]-1, to_add, axis=0)
+    return trimmed
+
+
+def trim_end(skill_to_trim):
+    x, y = skill_to_trim.shape
+    empty_cols = 0
+    for j in range(y):
+        for i in range(x):
+            pixel = skill_to_trim[i][j]
+            if pixel != 203:
+                empty_cols = -1
+                break
+        empty_cols += 1
+
+        if empty_cols >= 7:
+            break
+
+    j = j if j>150 else 150
+    while(j%10 or j <150):j+=1
+    trimmed = skill_to_trim[:, 0:j]
+    return trimmed
+
+
+def extremify_colors(img, top=203):
+    x, y = img.shape
+    for i in range(x):
+        for j in range(y):
+            img[i][j] = 255 if img[i][j] >= top else img[i][j]
+
+    return img
+
+
+def _identify_skill(skills, skill_holder):
+    skill_names = []
+
+    scores = {}
+    for skill_img in skills:
+        gs = cv2.cvtColor(skill_img, cv2.COLOR_BGR2GRAY)
+        # gs = trim_top_bottom(gs)
+        gs = trim_end(gs)
+        gs = extremify_colors(gs)
+
+        for reference_skill_name in skill_holder:
+            reference_skill_img = skill_holder[reference_skill_name]
+            if reference_skill_img.shape != gs.shape:
+                continue
+            score = structural_similarity(gs, reference_skill_img)
+            scores[score] = reference_skill_name
+
+        best = max(scores)
+        best_name = scores[best]
+        if best < 0.75:
+            print(best_name, best)
+        if best < 0.5:
+            best_name = "Unknown"
+
+        skill_names.append(best_name)
+
+    return skill_names
 
 
 def _get_skills(img):

@@ -18,11 +18,6 @@ It's called Utsushi's charm because I thought it would be funny to make a comple
 - A USB cable to connect your switch to transfer files
 - This latest version of this downloaded to your computer (Utsushis-Charm_**vx_x**.zip)
   - You can find it [here](https://github.com/chpoit/utsushis-charm/releases/latest)
-- **Google Tesseract** installed and in path 
-  - A copy of the version 4 is bundled with the release. Just run it, no extra packages needed
-    - Built by UB-Mannheim [License (Apache 2.0)](https://github.com/tesseract-ocr/tesseract/blob/master/LICENSE) 
-    - Alternatively, download the same version here: [Installer here](https://digi.bib.uni-mannheim.de/tesseract/tesseract-ocr-w64-setup-v4.1.0.20190314.exe) 
-    - Other Versions available on the [UB-Mannheim Github](https://github.com/UB-Mannheim/tesseract/wiki) page
 - Some knowledge of how to type things in the terminal
   - AKA: Knowing how to type in a hacker box
 - Being able to read
@@ -99,22 +94,8 @@ If the program starts and closes without anything happening, open the `app.log` 
 9. Click `Ok/Apply` for every window you opened.
 10. Restart every terminal/command line, or reboot to make sure you'll have access to the new commands
 
-
-# How does this work
-
-Using a combination of coding and algorithms, the developer was able to make drones fly without them crashing into each other. 
-
-In all seriousness, the work is done in a few broad steps:
-1. Take all the videos and apply a filter and crop them to a smaller resolution to keep only the important data, keeping around one frame per charm
-2. Out of those frames, get the slots, skills and skill levels
-3. Feed the Skills to Google Tesseract to extract the names
-   - If it is not a known skill, try using known corrections to get the proper skill
-   - If needed, ask the user for input on what the skill is
-4. Output the final list of charms
-
 # Contribute
 
-- If you ran everything and got new corrections in the [`skill_corrections.csv`](skill_corrections.csv) file, consider creating a pull request to add them for others.
 - If you feel like contributing anything, go ahead and submit a pull request I'll be happy to take a look and decide if it's something worth adding. 
 
 # TODOS: 
@@ -129,10 +110,46 @@ In all seriousness, the work is done in a few broad steps:
     - Need to do some "pixel poking" to make sure everything is lined up the same
 - [ ] Solution for people that don't want to bother with the hassle
 - [ ] Make the code not a mess
-- [ ] Use the page number in the "Is the last frame the same" check. (Low priority, charms still seem to get detected on page swap)
+- [x] Use the page number in the "Is the last frame the same" check. (Low priority, charms still seem to get detected on page swap)
 - [ ] Docker image for deployment?
 - [ ] UI
 - [ ] Multithreading for some of that SPEEEEED
+- Get images for the following skills:
+  - Likely Possible
+    - Ammo Up
+    - Attack Boost
+    - Blast Resistance
+    - Bow Charge Plus
+    - Capture Master
+    - Critical Draw
+    - Guard
+    - Guard Up
+    - Handicraft
+    - Load Shells
+    - Marathon Runner
+    - Maximum Might
+    - Mushroomancer
+    - Normal/Rapid Up
+    - Offensive Guard
+    - Pierce Up
+    - Rapid Fire Up
+    - Stamina Surge
+    - Wall Runner ---
+  - Likely not Possible
+    - Good Luck
+    - Carving Master -> Arena headpiece
+    - Chameleos Blessing
+    - Kushala Blessing
+    - Thunder Alignment
+    - Teostra Blessing
+    - Wind Alignment
+
+# Extra maintenance (Dev)
+
+To rebuild the js2py file with the extracted encoder from mhr-wiki:
+- babel .\js_encoder.js -o converted.js
+- python -c "import js2py; js2py.translate_file('converted.js', 'py_encoder.py')"
+- babel .\js_encoder.js -o converted.js && python -c "import js2py; js2py.translate_file('converted.js', 'py_encoder.py')"
 
 # Building the executable
 Run the `scripts\build_release.bat` file. You will need to have 7zip in path.

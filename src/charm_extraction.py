@@ -23,11 +23,11 @@ import os
 DEBUG = False
 
 
-
 logger = logging.getLogger(__name__)
 if DEBUG:
     logger.setLevel(logging.DEBUG)
 
+known_skills = {}
 
 spell = SymSpell(max_dictionary_edit_distance=4)
 spell.load_dictionary(get_resource_path("skill_dict"), 0, 1)
@@ -56,105 +56,24 @@ def fix_skill_name(skill_dict, skill_name):
     return skill_dict[skill_name.lower()]
 
 
-def extract_charm(frame_loc, slots, skills, skill_text):
+def extract_charm(frame_loc, slots, skills):
     logger.debug(f"Starting charm for {frame_loc}")
     has_errored = False
     charm = Charm(slots)
     skill_number = 0
-    for (img, text) in zip(skills, skill_text):
+    for skill, level in skills:
         skill_number += 1
-        skill_img, _ = img
-        skill, level = text
-        skill = skill.strip()
 
-        if not skill:
-            logger.warning(
-                f"Empty skill string for skill {skill_number} on {frame_loc}")
-            continue
+        # lwr = skill.lower()
+        # if lwr not in known_skills:
+        #     known_skills[lwr] = 1
+        #     s_f = all_skills[lwr]+f".png"
+        #     sp = os.path.join("images", "skills",s_f)
+        #     known_skills[lwr] +=1
+        #     cv2.imwrite(sp, skill_img)
+        #     if len(known_skills) == len(all_skills):
+        #         print("=======All skills found========")
 
-        if is_skill(all_skills, skill):
-            logger.debug(f"Added {skill}, {level}")
-            charm.add_skill(skill, level)
-            continue
-
-        logger.info("Parsed skill: ", skill.strip(), "level", level)
-
-        reconstructed_skill = ""
-        while (True):
-            for w in skill.split():
-                if w in known_corrections:
-                    true_w = known_corrections[w]
-                    reconstructed_skill += true_w + " "
-                    if reconstructed_skill.strip() == "<EMPTY_SKILL>":
-                        break
-                    continue
-
-                suggestions = spell.lookup(w, 2)
-                print(f"\nFull skill: '{skill}' Level {level}")
-                print(f"Current word: '{w}'")
-                if len(suggestions) == 0:
-                    print("Too many errors in the word")
-                if len(suggestions) > 1:
-                    print("Corrections: ")
-                    for i, s in enumerate(suggestions):
-                        print(f"[{i}] {s.term}")
-                cv2.imshow(f"{skill}", skill_img)
-                cv2.waitKey(1)
-
-                while (True):
-                    if len(suggestions) == 1 and not has_errored:
-                        new_word = ""
-                    else:
-                        new_word = input(
-                            f"Select Correction for word '{w}', or type it in. [0] is default. Type 'empty' for no skill:")
-                    has_errored = False
-
-                    if new_word == "empty":
-                        reconstructed_skill = "<EMPTY_SKILL>"
-                        break
-                    if str.isdigit(new_word) or not new_word:
-                        if not new_word:
-                            new_word = 0
-                        idx = int(new_word)
-                        if idx >= len(suggestions):
-                            continue
-                        reconstructed_skill += suggestions[idx].term + " "
-                    else:
-                        reconstructed_skill += new_word + " "
-                    break
-
-                cv2.destroyWindow(f"{skill}")
-
-            reconstructed_skill = reconstructed_skill.strip()
-            if "<EMPTY_SKILL>" in reconstructed_skill:
-                with open(get_resource_path("skill_corrections"), "a") as scf:
-                    scf.write(f"{w.strip()},{reconstructed_skill}\n")
-                known_corrections[skill] = reconstructed_skill
-            elif not is_skill(all_skills, reconstructed_skill):
-                if len(suggestions) == 1:
-                    reconstructed_skill = ""
-                    has_errored = True
-                    continue
-                print(f"'{reconstructed_skill}' is not a valid skill.")
-                print(
-                    "Make sure you only correct one word at a time. You can look at the picture to help identify the proper skill.")
-                reconstructed_skill = ""
-            else:
-                logger.info(
-                    f"Corrected skill: {reconstructed_skill} from {skill}")
-                for w, r in zip(skill.split(), reconstructed_skill.split()):
-                    if w not in known_corrections:
-                        with open(get_resource_path("skill_corrections"), "a", encoding="utf-8") as scf:
-                            scf.write(f"{w.strip()},{r.strip()}\n")
-                        known_corrections[w] = r
-                break
-
-        skill = reconstructed_skill.strip()
-        if "<EMPTY_SKILL>" in skill:
-            logger.warning(f"Empty/invalid skill found on {frame_loc}")
-            continue
-
-        logger.debug(f"Added {skill}, {level}")
         charm.add_skill(fix_skill_name(all_skills, skill), level)
 
     logger.debug(f"Finished charm for {frame_loc}")
@@ -178,21 +97,27 @@ def extract_charms(frame_dir):
 
                     inverted = cv2.bitwise_not(skill_only_im)
 
-                    trunc_tr = apply_trunc_threshold(inverted)  # appears to work best
+                    trunc_tr = apply_trunc_threshold(
+                        inverted)  # appears to work best
 
                     skills = get_skills(trunc_tr, True)
 
                     skill_text = read_text_from_skill_tuple(skills)
 
                 except Exception as e:
-                    logger.error(f"An error occured when analysing frame {frame_loc}. Error: {e}")
+                    logger.error(
+                        f"An error occured when analysing frame {frame_loc}. Error: {e}")
 
                 try:
+                    if any(map(lambda x: x[0] == "Unknown", skills)):
+                        logger.warn(
+                            f"Unknown skill found on {frame_loc}. Consider creating a Github issue here: https://github.com/chpoit/utsushis-charm/issues/new and upload the frame that causes errors")
                     charm = extract_charm(frame_loc, slots, skills, skill_text)
                     charms.append(charm)
                 except Exception as e:
-                    logger.error(f"An error occured when extracting charm on {frame_loc}. Error: {e}")
-                
+                    logger.error(
+                        f"An error occured when extracting charm on {frame_loc}. Error: {e}")
+
     except Exception as e:
         logger.error(f"Crashed with {e}")
 
