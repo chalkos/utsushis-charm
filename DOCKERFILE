@@ -1,0 +1,9 @@
+FROM python:3.9-alpine
+FROM node:16-alpine
+
+ENV TESSDATA_PREFIX=/usr/local/share/tessdata
+
+RUN pip3 install opencv-python numpy scikit-image pytesseract symspellpy tqdm js2py
+
+RUN apk update \
+    && apk upgrade \
